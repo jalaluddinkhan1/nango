@@ -51,11 +51,9 @@ export const getTool = asyncWrapperWithEnvironment<GetTool>(async (req, res) => 
         }
         const tool = resolved.value;
         if (tool.kind === 'function') {
-            if (tool.fn.config.enabled) {
-                res.status(200).send(toGetToolResponse(tool.fn));
-                return;
-            }
-        } else if (tool.kind !== 'missing' && (tool.kind === 'catalog' || tool.config.enabled)) {
+            res.status(200).send(toGetToolResponse(tool.fn));
+            return;
+        } else if (tool.kind !== 'missing') {
             res.status(200).send(actionToGetToolResponse(tool, integration));
             return;
         }

@@ -15,9 +15,9 @@ export type ResolvedTool = { kind: 'function'; fn: CurrentFunctionConfig } | Res
 export type ListedTool = { kind: 'function'; fn: CurrentFunctionConfig } | { kind: 'action'; action: ListedNangoActionFunction };
 
 /**
- * Resolves a tool by name, by order of priority:
- * 1. tool functions, including disabled ones so they shadow same-named actions
- * 2. deployed actions
+ * Resolves an enabled tool by name, by order of priority:
+ * 1. tool functions, disabled ones resolving to missing so they shadow same-named actions
+ * 2. deployed actions, disabled ones resolving to missing
  * 3. catalog tools
  */
 export async function resolveTool({
@@ -41,11 +41,15 @@ export async function resolveTool({
 
     const fn = functions.value[0];
     if (fn) {
-        return Ok({ kind: 'function', fn });
+        return Ok(fn.config.enabled ? { kind: 'function', fn } : { kind: 'missing' });
     }
 
     try {
-        return Ok(await resolveRunnableTool({ accountUuid, environmentId, integration, name }));
+        const tool = await resolveRunnableTool({ accountUuid, environmentId, integration, name });
+        if (tool.kind === 'deployed' && !tool.config.enabled) {
+            return Ok({ kind: 'missing' });
+        }
+        return Ok(tool);
     } catch (err) {
         return Err(new Error('failed_to_resolve_tool', { cause: err }));
     }

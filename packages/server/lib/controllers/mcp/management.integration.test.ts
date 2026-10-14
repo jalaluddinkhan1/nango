@@ -348,6 +348,7 @@ describe('POST /mcp management server', () => {
             'deploy_function',
             'deploy_template',
             'get_deployment_status',
+            'tools_get',
             'logs_list_operations',
             'logs_get_operation'
         ]);
@@ -438,6 +439,7 @@ describe('POST /mcp management server', () => {
             'deploy_function',
             'deploy_template',
             'get_deployment_status',
+            'tools_get',
             'logs_list_operations',
             'logs_get_operation'
         ];

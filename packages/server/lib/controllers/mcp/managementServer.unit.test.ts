@@ -24,6 +24,7 @@ import { proxyRequestTool } from './proxy/request.js';
 import { setSyncsStateTool } from './syncs/setState.js';
 import { triggerSyncsTool } from './syncs/trigger.js';
 import { withoutUnscopedTools } from './testUtils.js';
+import { getToolsTool } from './tools/get.js';
 import { PublicMcpError } from './utils.js';
 
 import type { McpServer } from '@modelcontextprotocol/server';
@@ -118,6 +119,7 @@ describe('createManagementMcpServer', () => {
                     name: 'get_deployment_status',
                     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
                 },
+                { name: 'tools_get', annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
                 { name: 'logs_list_operations', annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
                 { name: 'logs_get_operation', annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } }
             ]);
@@ -722,8 +724,8 @@ describe('createManagementMcpServer', () => {
         }
     });
 
-    it.each(['environment:functions:list', 'environment:functions:*'])('exposes the read-only functions list tool with %s', async (scope) => {
-        const { client, server } = await createTestClient([scope]);
+    it('exposes the read-only functions list tool with environment:functions:list', async () => {
+        const { client, server } = await createTestClient(['environment:functions:list']);
 
         try {
             const result = await client.listTools();
@@ -740,12 +742,54 @@ describe('createManagementMcpServer', () => {
         }
     });
 
+    it('exposes the read-only tools tools_get with environment:functions:read', async () => {
+        const { client, server } = await createTestClient(['environment:functions:read']);
+
+        try {
+            const result = await client.listTools();
+            const scopedTools = withoutUnscopedTools(result.tools);
+
+            expect(scopedTools.map((tool) => tool.name)).toStrictEqual(['tools_get']);
+        } finally {
+            await client.close();
+            await server.close();
+        }
+    });
+
+    it('exposes the read-only functions tools with environment:functions:*', async () => {
+        const { client, server } = await createTestClient(['environment:functions:*']);
+
+        try {
+            const result = await client.listTools();
+            const scopedTools = withoutUnscopedTools(result.tools);
+
+            expect(scopedTools.map((tool) => tool.name)).toStrictEqual(['functions_list', 'tools_get']);
+        } finally {
+            await client.close();
+            await server.close();
+        }
+    });
+
     it('authorizes function listing before invoking the tool', async () => {
         const handlerSpy = vi.spyOn(listFunctionsTool, 'handler');
         const { client, server } = await createTestClient(['environment:mcp']);
 
         try {
             await expectDisabledTool(client, 'functions_list', { integration_id: 'github' });
+            expect(handlerSpy).not.toHaveBeenCalled();
+        } finally {
+            handlerSpy.mockRestore();
+            await client.close();
+            await server.close();
+        }
+    });
+
+    it('authorizes tool reads before invoking the tool', async () => {
+        const handlerSpy = vi.spyOn(getToolsTool, 'handler');
+        const { client, server } = await createTestClient(['environment:mcp']);
+
+        try {
+            await expectDisabledTool(client, 'tools_get', { integration_id: 'github', name: 'fetchIssue' });
             expect(handlerSpy).not.toHaveBeenCalled();
         } finally {
             handlerSpy.mockRestore();

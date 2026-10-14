@@ -3,6 +3,8 @@ import * as z from 'zod/v4';
 import { functionTypeSchema, providerConfigKeySchema, syncNameSchema } from '../../../helpers/validation.js';
 import { functionIntegrationIdSchema, runnableFunctionTypeSchema } from '../../functions/validation.js';
 
+import type { FunctionListSource } from '@nangohq/types';
+
 export const deployFunctionArgumentsSchema = z
     .object({
         integration_id: functionIntegrationIdSchema,
@@ -68,6 +70,10 @@ export const listFunctionsArgumentsSchema = z
     })
     .strict();
 
+export const functionSourceSchema = z.enum(['catalog', 'standalone', 'repo', 'tools-catalog'] satisfies FunctionListSource[]);
+
+export const jsonSchemaSchema: z.ZodType<object> = z.looseObject({});
+
 const deployedFunctionBaseSchema = {
     id: z.number().int().nullable(),
     name: z.string(),
@@ -75,10 +81,8 @@ const deployedFunctionBaseSchema = {
     scopes: z.array(z.string()).optional(),
     enabled: z.boolean(),
     last_deployed: z.iso.datetime().nullable(),
-    source: z.enum(['catalog', 'standalone', 'repo', 'tools-catalog'])
+    source: functionSourceSchema
 };
-
-const jsonSchemaSchema: z.ZodType<object> = z.looseObject({});
 
 const deployedSyncFunctionSchema = z
     .object({

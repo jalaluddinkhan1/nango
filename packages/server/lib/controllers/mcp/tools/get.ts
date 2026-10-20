@@ -1,13 +1,15 @@
 import { configService, toolService } from '@nangohq/shared';
-import { Err, Ok } from '@nangohq/utils';
+import { Err, getLogger, Ok } from '@nangohq/utils';
 
 import { actionToGetToolResponse, toGetToolResponse } from '../../functions/formatter.js';
 import { defineManagementMcpTool } from '../managementTool.js';
-import { PublicMcpError } from '../utils.js';
+import { InternalMcpError, PublicMcpError } from '../utils.js';
 import { toolToMcp } from './formatter.js';
 import { getToolArgumentsSchema, getToolOutputSchema } from './schema.js';
 
 import type { GetToolOutput } from './schema.js';
+
+const logger = getLogger('Server.MCP.Tools');
 
 export const getToolsTool = defineManagementMcpTool<typeof getToolArgumentsSchema, GetToolOutput>({
     name: 'tools_get',
@@ -34,7 +36,8 @@ export const getToolsTool = defineManagementMcpTool<typeof getToolArgumentsSchem
             name: args.name
         });
         if (resolved.isErr()) {
-            throw resolved.error;
+            logger.error('Failed to resolve tool', { err: resolved.error });
+            return Err<GetToolOutput>(new InternalMcpError());
         }
 
         const tool = resolved.value;

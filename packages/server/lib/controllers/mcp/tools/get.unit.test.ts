@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configService, toolService } from '@nangohq/shared';
 import { Err, Ok } from '@nangohq/utils';
 
-import { PublicMcpError } from '../utils.js';
+import { InternalMcpError, PublicMcpError } from '../utils.js';
 import { getToolsTool } from './get.js';
 import { getToolOutputSchema } from './schema.js';
 
@@ -86,10 +86,15 @@ describe('getToolsTool', () => {
         }
     });
 
-    it('throws when the tool cannot be resolved', async () => {
+    it('returns an internal error when the tool cannot be resolved', async () => {
         vi.spyOn(toolService, 'resolveTool').mockResolvedValue(Err(new Error('failed_to_resolve_tool')));
 
-        await expect(getToolsTool.handler({ integration_id: 'github', name: 'fetchIssue' }, context)).rejects.toThrow('failed_to_resolve_tool');
+        const result = await getToolsTool.handler({ integration_id: 'github', name: 'fetchIssue' }, context);
+
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+            expect(result.error).toBeInstanceOf(InternalMcpError);
+        }
     });
 
     it('returns an error when the integration does not exist', async () => {

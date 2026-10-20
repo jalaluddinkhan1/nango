@@ -46,6 +46,7 @@ const managementToolNames = [
     'get_deployment_status',
     'tools_list',
     'tools_get',
+    'tools_call',
     'logs_list_operations',
     'logs_get_operation'
 ];

@@ -24,6 +24,7 @@ import { proxyRequestTool } from './proxy/request.js';
 import { setSyncsStateTool } from './syncs/setState.js';
 import { triggerSyncsTool } from './syncs/trigger.js';
 import { withoutUnscopedTools } from './testUtils.js';
+import { callToolsTool } from './tools/call.js';
 import { getToolsTool } from './tools/get.js';
 import { listToolsTool } from './tools/list.js';
 import { PublicMcpError } from './utils.js';
@@ -122,6 +123,10 @@ describe('createManagementMcpServer', () => {
                 },
                 { name: 'tools_list', annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
                 { name: 'tools_get', annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+                {
+                    name: 'tools_call',
+                    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true }
+                },
                 { name: 'logs_list_operations', annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
                 { name: 'logs_get_operation', annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } }
             ]);
@@ -817,6 +822,37 @@ describe('createManagementMcpServer', () => {
             await server.close();
         }
     });
+
+    it('exposes tools_call only with environment:functions:invocations and environment:actions:execute', async () => {
+        const { client, server } = await createTestClient(['environment:functions:invocations', 'environment:actions:execute']);
+
+        try {
+            const result = await client.listTools();
+            const scopedTools = withoutUnscopedTools(result.tools);
+
+            expect(scopedTools.map((tool) => tool.name)).toStrictEqual(['actions_trigger', 'tools_call']);
+        } finally {
+            await client.close();
+            await server.close();
+        }
+    });
+
+    it.each(['environment:functions:invocations', 'environment:actions:execute'])(
+        'authorizes tool calls before invoking the tool with only %s',
+        async (scope) => {
+            const handlerSpy = vi.spyOn(callToolsTool, 'handler');
+            const { client, server } = await createTestClient([scope]);
+
+            try {
+                await expectDisabledTool(client, 'tools_call', { integration_id: 'github', connection_id: 'connection-id', name: 'fetchIssue' });
+                expect(handlerSpy).not.toHaveBeenCalled();
+            } finally {
+                handlerSpy.mockRestore();
+                await client.close();
+                await server.close();
+            }
+        }
+    );
 
     it('returns function lists as JSON text and structured content', async () => {
         const response = {

@@ -5,16 +5,12 @@ import { toolService } from '@nangohq/shared';
 import { zodErrorToHTTP } from '@nangohq/utils';
 
 import { asyncWrapperWithEnvironment } from '../../../../utils/asyncWrapper.js';
-import { listedActionToGetToolResponse, toGetToolResponse } from '../../../functions/formatter.js';
+import { decodeToolCursor, paginateTools } from '../../../functions/tools.js';
 import { functionIntegrationIdSchema } from '../../../functions/validation.js';
 
 import type { GetTools } from '@nangohq/types';
 
 const paramsSchema = z.object({ uniqueKey: functionIntegrationIdSchema }).strict();
-
-function encodeCursor(name: string): string {
-    return Buffer.from(name, 'utf8').toString('base64url');
-}
 
 const querySchema = z
     .object({
@@ -23,8 +19,8 @@ const querySchema = z
             .min(1)
             .max(1024)
             .transform((cursor, ctx) => {
-                const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
-                if (!decoded || encodeCursor(decoded) !== cursor) {
+                const decoded = decodeToolCursor(cursor);
+                if (decoded === null) {
                     ctx.addIssue({ code: 'custom', message: 'invalid cursor' });
                     return z.NEVER;
                 }
@@ -61,17 +57,9 @@ export const getTools = asyncWrapperWithEnvironment<GetTools>(async (req, res) =
             }
             throw result.error;
         }
-        const integration = { unique_key: uniqueKey, provider: result.value.provider };
-        const tools = result.value.tools.map((tool) =>
-            tool.kind === 'function' ? toGetToolResponse(tool.fn) : listedActionToGetToolResponse(tool.action, integration)
+        res.status(200).send(
+            paginateTools({ tools: result.value.tools, integration: { unique_key: uniqueKey, provider: result.value.provider }, afterName, limit })
         );
-
-        const sorted = tools
-            .filter((tool) => afterName === undefined || tool.name > afterName)
-            .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-        const page = sorted.slice(0, limit);
-        const last = page.at(-1);
-        res.status(200).send({ data: page, next_cursor: sorted.length > limit && last ? encodeCursor(last.name) : null });
     } catch (err) {
         tracer.scope().active()?.setTag('error', err);
         res.status(500).send({ error: { code: 'server_error', message: 'Failed to list tools' } });

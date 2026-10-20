@@ -348,6 +348,7 @@ describe('POST /mcp management server', () => {
             'deploy_function',
             'deploy_template',
             'get_deployment_status',
+            'tools_list',
             'tools_get',
             'logs_list_operations',
             'logs_get_operation'
@@ -439,6 +440,7 @@ describe('POST /mcp management server', () => {
             'deploy_function',
             'deploy_template',
             'get_deployment_status',
+            'tools_list',
             'tools_get',
             'logs_list_operations',
             'logs_get_operation'
@@ -576,7 +578,7 @@ describe('POST /mcp management server', () => {
         expect(withoutUnscopedTools(res.json.result.tools).map((tool: { name: string }) => tool.name)).toStrictEqual(['integrations_list']);
     });
 
-    it('lists the functions tool with functions:list scope', async () => {
+    it('lists function tools with functions:list scope', async () => {
         const { secret } = await createKeyWithScopes(['environment:functions:list']);
         const res = await mcpPost({
             token: secret,
@@ -585,11 +587,11 @@ describe('POST /mcp management server', () => {
 
         expect(res.status).toBe(200);
         const scopedTools = withoutUnscopedTools(res.json.result.tools);
-        expect(scopedTools).toHaveLength(1);
-        expect(scopedTools[0]).toMatchObject({
-            name: 'functions_list',
-            annotations: { readOnlyHint: true }
-        });
+        expect(scopedTools).toHaveLength(2);
+        expect(scopedTools).toMatchObject([
+            { name: 'functions_list', annotations: { readOnlyHint: true } },
+            { name: 'tools_list', annotations: { readOnlyHint: true } }
+        ]);
     });
 
     it('lists filtered functions for an integration', async () => {

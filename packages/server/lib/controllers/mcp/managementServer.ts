@@ -29,6 +29,7 @@ import { proxyRequestTool } from './proxy/request.js';
 import { setSyncsStateTool } from './syncs/setState.js';
 import { triggerSyncsTool } from './syncs/trigger.js';
 import { getToolsTool } from './tools/get.js';
+import { listToolsTool } from './tools/list.js';
 import { handleMcpToolError, jsonStructuredContent, mcpToolError, toJsonSchema202012 } from './utils.js';
 
 import type {
@@ -68,6 +69,7 @@ const managementMcpTools: ManagementMcpTool[] = [
     deployFunctionTool,
     deployTemplateTool,
     getDeploymentStatusTool,
+    listToolsTool,
     getToolsTool,
     listLogOperationsTool,
     getLogOperationTool

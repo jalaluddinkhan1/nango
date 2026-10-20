@@ -32,3 +32,20 @@ export const getToolOutputSchema = z
     .strict();
 
 export type GetToolOutput = z.infer<typeof getToolOutputSchema>;
+
+export const listToolsArgumentsSchema = z
+    .object({
+        integration_id: functionIntegrationIdSchema,
+        cursor: z.string().min(1).max(1024).optional(),
+        limit: z.number().int().min(1).max(100).optional().default(20)
+    })
+    .strict();
+
+export const listToolsOutputSchema = z
+    .object({
+        data: z.array(getToolOutputSchema),
+        next_cursor: z.string().nullable()
+    })
+    .strict();
+
+export type ListToolsOutput = z.infer<typeof listToolsOutputSchema>;

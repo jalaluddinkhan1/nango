@@ -25,6 +25,7 @@ import { setSyncsStateTool } from './syncs/setState.js';
 import { triggerSyncsTool } from './syncs/trigger.js';
 import { withoutUnscopedTools } from './testUtils.js';
 import { getToolsTool } from './tools/get.js';
+import { listToolsTool } from './tools/list.js';
 import { PublicMcpError } from './utils.js';
 
 import type { McpServer } from '@modelcontextprotocol/server';
@@ -119,6 +120,7 @@ describe('createManagementMcpServer', () => {
                     name: 'get_deployment_status',
                     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
                 },
+                { name: 'tools_list', annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
                 { name: 'tools_get', annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
                 { name: 'logs_list_operations', annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
                 { name: 'logs_get_operation', annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } }
@@ -724,16 +726,20 @@ describe('createManagementMcpServer', () => {
         }
     });
 
-    it('exposes the read-only functions list tool with environment:functions:list', async () => {
+    it('exposes the read-only functions_list and tools_list with environment:functions:list', async () => {
         const { client, server } = await createTestClient(['environment:functions:list']);
 
         try {
             const result = await client.listTools();
             const scopedTools = withoutUnscopedTools(result.tools);
 
-            expect(scopedTools).toHaveLength(1);
+            expect(scopedTools).toHaveLength(2);
             expect(scopedTools[0]).toMatchObject({
                 name: 'functions_list',
+                annotations: { readOnlyHint: true }
+            });
+            expect(scopedTools[1]).toMatchObject({
+                name: 'tools_list',
                 annotations: { readOnlyHint: true }
             });
         } finally {
@@ -763,7 +769,7 @@ describe('createManagementMcpServer', () => {
             const result = await client.listTools();
             const scopedTools = withoutUnscopedTools(result.tools);
 
-            expect(scopedTools.map((tool) => tool.name)).toStrictEqual(['functions_list', 'tools_get']);
+            expect(scopedTools.map((tool) => tool.name)).toStrictEqual(['functions_list', 'tools_list', 'tools_get']);
         } finally {
             await client.close();
             await server.close();
@@ -776,6 +782,20 @@ describe('createManagementMcpServer', () => {
 
         try {
             await expectDisabledTool(client, 'functions_list', { integration_id: 'github' });
+            expect(handlerSpy).not.toHaveBeenCalled();
+        } finally {
+            handlerSpy.mockRestore();
+            await client.close();
+            await server.close();
+        }
+    });
+
+    it('authorizes tool listing before invoking the tool', async () => {
+        const handlerSpy = vi.spyOn(listToolsTool, 'handler');
+        const { client, server } = await createTestClient(['environment:mcp']);
+
+        try {
+            await expectDisabledTool(client, 'tools_list', { integration_id: 'github' });
             expect(handlerSpy).not.toHaveBeenCalled();
         } finally {
             handlerSpy.mockRestore();
